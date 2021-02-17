@@ -263,13 +263,15 @@ void getInitFileName(string* init_file, const string& nominal_traj_init_file,
       *init_file = to_string(iter) + "_" + to_string(sample_idx_to_help) +
           string("_w.csv");
   }else {
-    if (non_grid_task) {
-      *init_file = SetInitialGuessByInterpolation(
-          dir, iter, sample, task_gen, task, rom,task_gen_expansion);
-    } else {
-      *init_file =
-          to_string(iter - 1) + "_" + to_string(sample) + string("_w.csv");
-    }
+//    if (non_grid_task) {
+//      *init_file = SetInitialGuessByInterpolation(
+//          dir, iter, sample, task_gen, task, rom,task_gen_expansion);
+//    } else {
+//      *init_file =
+//          to_string(iter - 1) + "_" + to_string(sample) + string("_w.csv");
+//    }
+    *init_file =
+        to_string(iter) + "_" + to_string(sample) + string("_initial_guess.csv");
   }
 
   // Testing
@@ -647,6 +649,13 @@ void calcWInTermsOfTheta(int sample, const string& dir, const SubQpData& QPs,
 
   MatrixXd Pi(*(QPs.nw_vec[sample]), QPs.B_active_vec[sample]->cols());
   VectorXd qi(*(QPs.nw_vec[sample]));
+
+  cout<<"print_info1"<<endl;
+  writeCSV(dir + "test1_" + to_string(sample)+ "_"+ string("P.csv"),
+           Pi);
+  writeCSV(dir + "test1_" + to_string(sample)+ "_"+ string("q.csv"),
+           qi);
+
   if (method_to_solve_system_of_equations == 0) {
     // Method 0: use optimization program to solve it??? ///////////////////////
     throw std::runtime_error(
@@ -716,12 +725,34 @@ void calcWInTermsOfTheta(int sample, const string& dir, const SubQpData& QPs,
       qi = -inv_H_ext11 * (*(QPs.b_vec[sample]));
     } else if (method_to_solve_system_of_equations == 4) {
       // Method 4: linear solve with householderQr /////////////////////////////
+      cout<<"print_info3"<<endl;
       MatrixXd B_aug =
           MatrixXd::Zero(H_ext.rows(), QPs.B_active_vec[sample]->cols());
       B_aug.bottomRows(nl_i) = -(*(QPs.B_active_vec[sample]));
 
+      cout<<"print_info4"<<endl;
+      for (int i=0;i<B_aug.rows();i++){
+        for (int j=0;j<B_aug.cols();j++){
+          if(std::isnan(B_aug(i,j))){
+            cout<<to_string(sample)<<" B_aug nan: "<<"row "<<to_string(i)<<" col "<<to_string(j)<<endl;
+          }
+        }
+      }
+      for (int i=0;i<H_ext.rows();i++){
+        for (int j=0;j<H_ext.cols();j++){
+          if(std::isnan(H_ext(i,j))){
+            cout<<to_string(sample)<<" H_ext nan: "<<"row "<<to_string(i)<<" col "<<to_string(j)<<endl;
+          }
+        }
+      }
+      writeCSV(dir + "test4_" + to_string(sample)+ "_"+ string("B_aug.csv"),
+               B_aug);
+      writeCSV(dir + "test4_" + to_string(sample)+ "_"+ string("H_ext.csv"),
+               H_ext);
+
       Pi = H_ext.householderQr().solve(B_aug).topRows(nw_i);
       qi = VectorXd::Zero(nw_i);
+      cout<<"print_info5"<<endl;
     } else if (method_to_solve_system_of_equations == 5) {
       // Method 5: linear solve with ColPivHouseholderQR ///////////////////////
       MatrixXd B_aug =
@@ -751,6 +782,12 @@ void calcWInTermsOfTheta(int sample, const string& dir, const SubQpData& QPs,
   QPs.q_vec[sample]->resizeLike(qi);
   *(QPs.P_vec[sample]) = Pi;
   *(QPs.q_vec[sample]) = qi;
+
+  cout<<"print_info2"<<endl;
+  writeCSV(dir + "test2_" + to_string(sample)+ "_"+ string("P.csv"),
+           Pi);
+  writeCSV(dir + "test2_" + to_string(sample)+ "_"+ string("q.csv"),
+           qi);
 
   // Testing
   MatrixXd abs_Pi = Pi.cwiseAbs();
@@ -1180,6 +1217,11 @@ void CalcCostGradientAndNorm(vector<int> successful_idx_list,
   gradient_cost->setZero();
   for (auto idx : successful_idx_list) {
     (*gradient_cost) += P_vec[idx]->transpose() * (*(b_vec[idx]));
+    cout<<"print_info"<<endl;
+    writeCSV(dir + prefix + to_string(idx)+ "_"+ string("P.csv"),
+             P_vec[idx]->transpose());
+    writeCSV(dir + prefix + to_string(idx)+ "_"+ string("b.csv"),
+             *b_vec[idx]);
   }
   (*gradient_cost) /= successful_idx_list.size();
 
@@ -2110,19 +2152,25 @@ int findGoldilocksModels(int argc, char* argv[]) {
             writeCSV(dir + prefix + string("task.csv"), task_vectorxd);
           }
           else {
-            if (is_grid_task && is_get_nominal) {
-              task.set(task_gen_grid.NewNominalTask(sample_idx));
-            }
-            else{
-              task.set(task_gen->NewTask(dir,sample_idx));
-            }
-            // Map std::vector to VectorXd and create a copy of VectorXd
-            Eigen::VectorXd task_vectorxd = Eigen::Map<const VectorXd>(
-                task.get().data(), task.get().size());
-            previous_task[sample_idx] = task_vectorxd;
-            // Store task in file
+//            if (is_grid_task && is_get_nominal) {
+//              task.set(task_gen_grid.NewNominalTask(sample_idx));
+//            }
+//            else{
+//              task.set(task_gen->NewTask(dir,sample_idx));
+//            }
+//            // Map std::vector to VectorXd and create a copy of VectorXd
+//            Eigen::VectorXd task_vectorxd = Eigen::Map<const VectorXd>(
+//                task.get().data(), task.get().size());
+//            previous_task[sample_idx] = task_vectorxd;
+//            // Store task in file
+//            prefix = to_string(iter)+"_"+to_string(sample_idx)+"_";
+//            writeCSV(dir + prefix + string("task.csv"), task_vectorxd);
             prefix = to_string(iter)+"_"+to_string(sample_idx)+"_";
-            writeCSV(dir + prefix + string("task.csv"), task_vectorxd);
+            Eigen::VectorXd task_vectorxd = readCSV(dir + prefix +
+                string("task.csv"));
+            // set the task
+            task.set(CopyVectorXdToStdVector(task_vectorxd));
+            previous_task[sample_idx] = task_vectorxd;
           }
 
           // (Feature -- get initial guess from adjacent successful samples)
@@ -2690,6 +2738,7 @@ int findGoldilocksModels(int argc, char* argv[]) {
       }
       cout << "Finished checking\n\n";*/
 
+
       // Get w in terms of theta (Get P_i and q_i where w = P_i * theta + q_i)
       auto start_time_calc_w = std::chrono::high_resolution_clock::now();
       {
@@ -2719,6 +2768,7 @@ int findGoldilocksModels(int argc, char* argv[]) {
           temp_start_of_idx_list = temp_end_of_idx_list;
         }
       }
+
       /*// Read P_i and q_i
       readPiQiFile(&P_vec, &q_vec, n_succ_sample, dir);*/
       // Print out elapsed time
